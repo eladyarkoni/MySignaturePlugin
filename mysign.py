@@ -6,6 +6,7 @@
 #				- showing javascript methods with parameters
 #-----------------------------------------------------------------------------------
 import sublime, sublime_plugin, os, re, threading
+from os.path import basename
 
 #
 # Method Class
@@ -13,13 +14,17 @@ import sublime, sublime_plugin, os, re, threading
 class Method:
 	_name = ""
 	_signature = ""
-	def __init__(self, name, signature):
+	_filename = ""
+	def __init__(self, name, signature, filename):
 		self._name = name
+		self._filename = filename;
 		self._signature = signature
 	def name(self):
 		return self._name
 	def signature(self):
 		return self._signature
+	def filename(self):
+		return self._filename
 
 #
 # MySign Class
@@ -30,13 +35,13 @@ class MySign:
 	MAX_FUNC_SIZE = 50
 	def clear(self):
 		self._functions = []
-	def addFunc(self, name, signature):
-		self._functions.append(Method(name, signature))
+	def addFunc(self, name, signature, filename):
+		self._functions.append(Method(name, signature, filename))
 	def get_autocomplete_list(self, word):
 		autocomplete_list = []
 		for method_obj in self._functions:
 			if word in method_obj.name():
-				autocomplete_list.append((method_obj.name() + '(' + method_obj.signature()+ ')','')) 
+				autocomplete_list.append((method_obj.name() + '(' + method_obj.signature()+ ') - ' + method_obj.filename(),method_obj.name())) 
 		return autocomplete_list
 
 #
@@ -59,7 +64,7 @@ class MySignCollectorThread(threading.Thread):
 			if "function" in line:
 				matches = re.search('(\w+)\s*[: | =]\s*function\s*\((.*)\)', line)
 				if matches != None and (len(matches.group(1)) < self.collector.MAX_FUNC_SIZE and len(matches.group(2)) < self.collector.MAX_FUNC_SIZE):
-					self.collector.addFunc(matches.group(1), matches.group(2))
+					self.collector.addFunc(matches.group(1), matches.group(2), basename(file_name))
 
 	#
 	# Get Javascript files paths
