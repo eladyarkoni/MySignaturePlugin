@@ -84,7 +84,7 @@ class MySignCollectorThread(threading.Thread):
 
 	def stop(self):
 		if self.isAlive():
-			thread.exit()
+			self._Thread__stop()
 
 #
 # MySign Collector Class
