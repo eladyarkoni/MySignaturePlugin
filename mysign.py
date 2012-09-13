@@ -5,7 +5,7 @@
 # Description: Sublime text autocomplete improvements: 
 #				- showing javascript methods with parameters
 #-----------------------------------------------------------------------------------
-import sublime, sublime_plugin, os, re
+import sublime, sublime_plugin, os, re, threading
 
 #
 # Method Class
@@ -40,9 +40,15 @@ class MySign:
 		return autocomplete_list
 
 #
-# MySign Collector Class
+# MySign Collector Thread
 #
-class MySignCollector(MySign, sublime_plugin.EventListener):
+class MySignCollectorThread(threading.Thread):
+	
+	def __init__(self, collector, open_folder_arr, timeout_seconds):  
+		self.collector = collector
+		self.timeout = timeout_seconds
+		self.open_folder_arr = open_folder_arr
+		threading.Thread.__init__(self)
 
 	#
 	# Get all method signatures
@@ -52,8 +58,8 @@ class MySignCollector(MySign, sublime_plugin.EventListener):
 		for line in file_lines:
 			if "function" in line:
 				matches = re.search('(\w+)\s*[: | =]\s*function\s*\((.*)\)', line)
-				if matches != None and (len(matches.group(1)) < self.MAX_FUNC_SIZE and len(matches.group(2)) < self.MAX_FUNC_SIZE):
-					self.addFunc(matches.group(1), matches.group(2))
+				if matches != None and (len(matches.group(1)) < self.collector.MAX_FUNC_SIZE and len(matches.group(2)) < self.collector.MAX_FUNC_SIZE):
+					self.collector.addFunc(matches.group(1), matches.group(2))
 
 	#
 	# Get Javascript files paths
@@ -70,17 +76,33 @@ class MySignCollector(MySign, sublime_plugin.EventListener):
 				fileList += self.get_javascript_files(dirfile, *args)
 		return fileList
 
+	def run(self):
+		for folder in self.open_folder_arr:
+			jsfiles = self.get_javascript_files(folder)
+			for file_name in jsfiles:
+				self.save_method_signature(file_name)
+
+	def stop(self):
+		if self.isAlive():
+			Thread._Thread__stop(self)
+
+#
+# MySign Collector Class
+#
+class MySignCollector(MySign, sublime_plugin.EventListener):
+
+	_collector_thread = None
+
 	#
 	# Invoked when user save a file
 	#
 	def on_post_save(self, view):
 		self.clear()
 		open_folder_arr = view.window().folders()
-		for folder in open_folder_arr:
-			jsfiles = self.get_javascript_files(folder)
-			for file_name in jsfiles:
-				self.save_method_signature(file_name)
-
+		if self._collector_thread != None:
+			self._collector_thread.stop()
+		self._collector_thread = MySignCollectorThread(self, open_folder_arr, 30)
+		self._collector_thread.start()
 	#
 	# Change autocomplete suggestions
 	#
