@@ -45,6 +45,9 @@ class MySign:
 				method_file_location = method_obj.filename();
 				autocomplete_list.append((method_str_to_append + ' - ' + method_file_location,method_str_to_append)) 
 		return autocomplete_list
+	def get_lang(self, filename):
+		if '.js' in filename:
+			return "javascript"
 
 #
 # MySign Collector Thread
@@ -114,8 +117,11 @@ class MySignCollector(MySign, sublime_plugin.EventListener):
 	# Change autocomplete suggestions
 	#
 	def on_query_completions(self, view, prefix, locations):
-		completions = self.get_autocomplete_list(prefix)
-		completions = list(set(completions))
-		completions.sort()
-		if completions:
-			return completions
+		current_file = view.file_name()
+		if self.get_lang(current_file) == 'javascript':
+			completions = self.get_autocomplete_list(prefix)
+			completions = list(set(completions))
+			completions.sort()
+			if completions:
+				return completions
+		return []
