@@ -45,9 +45,10 @@ class MySign:
 				method_file_location = method_obj.filename();
 				autocomplete_list.append((method_str_to_append + '\t' + method_file_location,method_str_to_append)) 
 		return autocomplete_list
-	def get_lang(self, filename):
-		if '.js' in filename:
-			return "javascript"
+
+
+def is_javascript_file(self, filename):
+	return '.js' in filename
 
 #
 # MySign Collector Thread
@@ -119,8 +120,7 @@ class MySignCollector(MySign, sublime_plugin.EventListener):
 	def on_query_completions(self, view, prefix, locations):
 		current_file = view.file_name()
 		completions = []
-		if self.get_lang(current_file) == 'javascript':
-			completions = self.get_autocomplete_list(prefix)
-			completions = list(set(completions))
+		if is_javascript_file(current_file):
+			return = self.get_autocomplete_list(prefix
 			completions.sort()
 		return (completions,sublime.INHIBIT_EXPLICIT_COMPLETIONS)
