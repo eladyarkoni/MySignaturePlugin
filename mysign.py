@@ -47,7 +47,7 @@ class MySign:
 		return autocomplete_list
 
 
-def is_javascript_file(self, filename):
+def is_javascript_file(filename):
 	return '.js' in filename
 
 #
@@ -121,6 +121,6 @@ class MySignCollector(MySign, sublime_plugin.EventListener):
 		current_file = view.file_name()
 		completions = []
 		if is_javascript_file(current_file):
-			return = self.get_autocomplete_list(prefix
+			return self.get_autocomplete_list(prefix)
 			completions.sort()
 		return (completions,sublime.INHIBIT_EXPLICIT_COMPLETIONS)
