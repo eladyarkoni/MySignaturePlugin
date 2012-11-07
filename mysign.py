@@ -69,8 +69,11 @@ class MySignCollectorThread(threading.Thread):
 		for line in file_lines:
 			if "function" in line:
 				matches = re.search('(\w+)\s*[: | =]\s*function\s*\((.*)\)', line)
+				matches2 = re.search('function\s*(\w+)\s*\((.*)\)', line)
 				if matches != None and (len(matches.group(1)) < self.collector.MAX_FUNC_SIZE and len(matches.group(2)) < self.collector.MAX_FUNC_SIZE):
 					self.collector.addFunc(matches.group(1), matches.group(2), basename(file_name))
+				elif matches2 != None and (len(matches2.group(1)) < self.collector.MAX_FUNC_SIZE and len(matches2.group(2)) < self.collector.MAX_FUNC_SIZE):
+					self.collector.addFunc(matches2.group(1), matches2.group(2), basename(file_name))
 
 	#
 	# Get Javascript files paths
