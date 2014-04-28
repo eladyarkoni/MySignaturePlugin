@@ -1,4 +1,4 @@
-MySignature - Sublime text 2 plugin
+MySignature - Sublime text 2/3 plugin
 -------------------------------------
 
 MySignature plugin is very lightweight plugin for sublime which improve the sublime text autocomplete functionality.

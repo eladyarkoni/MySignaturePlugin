@@ -5,7 +5,7 @@
 # Description: Sublime text autocomplete improvements: 
 #				- showing javascript methods with parameters
 #-----------------------------------------------------------------------------------
-import sublime, sublime_plugin, os, re, threading
+import sublime, sublime_plugin, os, re, threading, codecs
 from os.path import basename
 
 #
@@ -65,7 +65,8 @@ class MySignCollectorThread(threading.Thread):
 	# Get all method signatures
 	#
 	def save_method_signature(self, file_name):
-		file_lines = open(file_name, 'rU')
+		# file_lines = open(file_name, "r", "utf-8")
+		file_lines = codecs.open(file_name, encoding='utf8')
 		for line in file_lines:
 			if "function" in line:
 				matches = re.search('(\w+)\s*[: | =]\s*function\s*\((.*)\)', line)
