@@ -2,7 +2,7 @@
 # MySignature Sublime Text Plugin
 # Author: Elad Yarkoni
 # Version: 1.0
-# Description: Sublime text autocomplete improvements: 
+# Description: Sublime text autocomplete improvements:
 #				- showing javascript methods with parameters
 #-----------------------------------------------------------------------------------
 import sublime, sublime_plugin, os, re, threading, codecs
@@ -43,19 +43,19 @@ class MySign:
 			if word in method_obj.name():
 				method_str_to_append = method_obj.name() + '(' + method_obj.signature()+ ')'
 				method_file_location = method_obj.filename();
-				autocomplete_list.append((method_str_to_append + '\t' + method_file_location,method_str_to_append)) 
+				autocomplete_list.append((method_str_to_append + '\t' + method_file_location,method_str_to_append))
 		return autocomplete_list
 
 
 def is_javascript_file(filename):
-	return '.js' in filename
+	return filename.endswith('.js')
 
 #
 # MySign Collector Thread
 #
 class MySignCollectorThread(threading.Thread):
-	
-	def __init__(self, collector, open_folder_arr, timeout_seconds):  
+
+	def __init__(self, collector, open_folder_arr, timeout_seconds):
 		self.collector = collector
 		self.timeout = timeout_seconds
 		self.open_folder_arr = open_folder_arr
