@@ -39,7 +39,10 @@ class MySign:
 					if prefix in function['name']:
 						name = function['name'] + '(' + function['sign']+ ')'
 						if 'hint' not in function:
-							function['hint'] = ", ".join(["${%s:%s}" % (k+1, v.strip()) for k, v in enumerate(function['sign'].split(','))])
+							if function['sign'].strip() == '':
+								function['hint'] = function['sign']
+							else:
+								function['hint'] = ", ".join(["${%s:%s}" % (k+1, v.strip()) for k, v in enumerate(function['sign'].split(','))])
 
 						completions.append((name + '\t' + location, function['name'] + '(' + function['hint']+')'))
 		if debug:
@@ -130,7 +133,6 @@ class MySignEventListener(sublime_plugin.EventListener):
 	def on_query_completions(self, view, prefix, locations):
 		if is_javascript_view(view, locations):
 			return MySign.get_completions(prefix)
-		return ([], sublime.INHIBIT_EXPLICIT_COMPLETIONS)
 
 global Pref, s
 
