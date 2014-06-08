@@ -38,7 +38,10 @@ class MySign:
 				for function in data:
 					if prefix in function['name']:
 						name = function['name'] + '(' + function['sign']+ ')'
-						completions.append((name + '\t' + location, name))
+						if 'hint' not in function:
+							function['hint'] = ", ".join(["${%s:%s}" % (k+1, v.strip()) for k, v in enumerate(function['sign'].split(','))])
+
+						completions.append((name + '\t' + location, function['name'] + '(' + function['hint']+')'))
 		if debug:
 			print("Completions")
 			print(completions)
