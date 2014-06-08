@@ -1,0 +1,10 @@
+{
+
+	"excluded_files_or_folders":[
+		"exclude_this_file.js",
+		"exclude_this_folder"
+	],
+
+	"forget_deleted_files": false
+
+}

@@ -5,126 +5,193 @@
 # Description: Sublime text autocomplete improvements:
 #				- showing javascript methods with parameters
 #-----------------------------------------------------------------------------------
-import sublime, sublime_plugin, os, re, threading, codecs
-from os.path import basename
+import sublime, sublime_plugin, os, re, threading, codecs, time
+from os.path import basename, dirname, normpath, normcase, realpath
 
-#
-# Method Class
-#
-class Method:
-	_name = ""
-	_signature = ""
-	_filename = ""
-	def __init__(self, name, signature, filename):
-		self._name = name
-		self._filename = filename;
-		self._signature = signature
-	def name(self):
-		return self._name
-	def signature(self):
-		return self._signature
-	def filename(self):
-		return self._filename
+try:
+	import thread
+except:
+	import _thread as thread
 
-#
-# MySign Class
-#
+
+global debug
+debug = False
+
 class MySign:
-	_functions = []
-	MAX_WORD_SIZE = 100
-	MAX_FUNC_SIZE = 50
+
+	files = dict()
+
 	def clear(self):
-		self._functions = []
-	def addFunc(self, name, signature, filename):
-		self._functions.append(Method(name, signature, filename))
-	def get_autocomplete_list(self, word):
-		autocomplete_list = []
-		for method_obj in self._functions:
-			if word in method_obj.name():
-				method_str_to_append = method_obj.name() + '(' + method_obj.signature()+ ')'
-				method_file_location = method_obj.filename();
-				autocomplete_list.append((method_str_to_append + '\t' + method_file_location,method_str_to_append))
-		return autocomplete_list
+		self.files = dict()
 
+	def save_functions(self, file, data):
+		self.files[file] = data
+		if debug:
+			print(self.files[file])
 
-def is_javascript_file(filename):
-	return filename.endswith('.js')
+	def get_completions(self, prefix):
+		skip_deleted = Pref.forget_deleted_files
+		completions = []
+		for file, data in self.files.items():
+			if not skip_deleted or (skip_deleted and os.path.lexists(file)):
+				location = basename(file)
+				for function in data:
+					if prefix in function['name']:
+						name = function['name'] + '(' + function['sign']+ ')'
+						completions.append((name + '\t' + location, name))
+		if debug:
+			print("Completions")
+			print(completions)
+		return completions
 
-#
-# MySign Collector Thread
-#
+MySign = MySign()
+
+# the thread will parse or reparse a file if the file argument is present
+# if the "file" argument is not present, then while rescan the folders
 class MySignCollectorThread(threading.Thread):
 
-	def __init__(self, collector, open_folder_arr, timeout_seconds):
-		self.collector = collector
-		self.timeout = timeout_seconds
-		self.open_folder_arr = open_folder_arr
+	def __init__(self, file = None):
+		self.file = file
 		threading.Thread.__init__(self)
 
-	#
-	# Get all method signatures
-	#
-	def save_method_signature(self, file_name):
-		# file_lines = open(file_name, "r", "utf-8")
-		file_lines = codecs.open(file_name, encoding='utf8')
-		for line in file_lines:
-			if "function" in line:
-				matches = re.search('(\w+)\s*[: | =]\s*function\s*\((.*)\)', line)
-				matches2 = re.search('function\s*(\w+)\s*\((.*)\)', line)
-				if matches != None and (len(matches.group(1)) < self.collector.MAX_FUNC_SIZE and len(matches.group(2)) < self.collector.MAX_FUNC_SIZE):
-					self.collector.addFunc(matches.group(1), matches.group(2), basename(file_name))
-				elif matches2 != None and (len(matches2.group(1)) < self.collector.MAX_FUNC_SIZE and len(matches2.group(2)) < self.collector.MAX_FUNC_SIZE):
-					self.collector.addFunc(matches2.group(1), matches2.group(2), basename(file_name))
-
-	#
-	# Get Javascript files paths
-	#
-	def get_javascript_files(self, dir_name, *args):
-		fileList = []
-		for file in os.listdir(dir_name):
-			dirfile = os.path.join(dir_name, file)
-			if os.path.isfile(dirfile):
-				fileName, fileExtension = os.path.splitext(dirfile)
-				if fileExtension == ".js" and ".min." not in fileName:
-					fileList.append(dirfile)
-			elif os.path.isdir(dirfile):
-				fileList += self.get_javascript_files(dirfile, *args)
-		return fileList
-
 	def run(self):
-		for folder in self.open_folder_arr:
-			jsfiles = self.get_javascript_files(folder)
-			for file_name in jsfiles:
-				self.save_method_signature(file_name)
+		if self.file:
+			try:
+				self.parse_functions(norm_path(self.file))
+			except:
+				pass
+		else:
+			# the list of opened files
+			files = [norm_path(v.file_name()) for window in sublime.windows() for v in window.views() if v.file_name() and is_javascript_file(v.file_name()) and not should_exclude(norm_path(v.file_name()))]
+			# the list of opened folders in all the windows
+			folders = [norm_path(folder) for window in sublime.windows() for folder in window.folders() if folder and not should_exclude(norm_path(folder))]
+			Pref.folders = list(folders) # this is the "cache id" to know when to rescan the whole thing again
+			# add as folders, the dirname of the current opened files
+			folders += [norm_path(dirname(file)) for file in files]
 
-	def stop(self):
-		if self.isAlive():
-			self._Thread__stop()
+			folders = list(set(folders))
+			if debug:
+				print('Folders to scan:')
+				print("\n".join(folders))
+			for folder in folders:
+				self.get_files(folder, files)
 
-#
-# MySign Collector Class
-#
-class MySignCollector(MySign, sublime_plugin.EventListener):
+			files = list(set(files))
+			if debug:
+				print('Files to parse:')
+				print("\n".join(files))
 
-	_collector_thread = None
+			for file in files:
+				if file not in MySign.files:
+					try:
+						self.parse_functions(file)
+					except:
+						pass # the file may be unreachable/unreadable
+				else:
+					if debug:
+						print('Skipping parsing of already indexed file')
 
-	#
-	# Invoked when user save a file
-	#
-	def on_post_save(self, view):
-		self.clear()
-		open_folder_arr = view.window().folders()
-		if self._collector_thread != None:
-			self._collector_thread.stop()
-		self._collector_thread = MySignCollectorThread(self, open_folder_arr, 30)
-		self._collector_thread.start()
-	#
-	# Change autocomplete suggestions
-	#
+	def parse_functions(self, file):
+		if debug:
+			print('\nParsing functions for file:\n'+file)
+		lines = [line for line in codecs.open(file, encoding='utf8') if len(line) < 300 and "function" in line]
+		functions = []
+		for line in lines:
+			for regexp in Pref.expressions:
+				matches = regexp(line)
+				if matches and matches.groupdict() not in functions:
+					functions.append(matches.groupdict())
+					break
+		MySign.save_functions(file, functions)
+
+	def get_files(self, dir, files):
+		for file in os.listdir(dir):
+			file = os.path.join(dir, file)
+			if os.path.isfile(file) and not should_exclude(file):
+				if is_javascript_file(file):
+					files.append(norm_path(file))
+			elif os.path.isdir(file) and not should_exclude(file):
+				self.get_files(file, files)
+
+class MySignEventListener(sublime_plugin.EventListener):
+
+	def on_post_save_async(self, view):
+		if is_javascript_view(view):
+			MySignCollectorThread(view.file_name()).start()
+
+	def on_load_async(self, view):
+		if is_javascript_view(view) and is_javascript_file(view.file_name()):
+			if norm_path(view.file_name()) not in MySign.files: # only if it is not indexed
+				MySignCollectorThread(view.file_name()).start()
+
 	def on_query_completions(self, view, prefix, locations):
-		current_file = view.file_name()
-		completions = []
-		if is_javascript_file(current_file):
-			return self.get_autocomplete_list(prefix)
-			completions.sort()
-		return (completions,sublime.INHIBIT_EXPLICIT_COMPLETIONS)
+		if is_javascript_view(view, locations):
+			return MySign.get_completions(prefix)
+		return ([], sublime.INHIBIT_EXPLICIT_COMPLETIONS)
+
+global Pref, s
+
+def is_javascript_view(view, locations = None):
+	return (view.file_name() and is_javascript_file(view.file_name())) or ('JavaScript' in view.settings().get('syntax')) or ( locations and len(locations) and '.js' in view.scope_name(locations[0]))
+
+def is_javascript_file(file):
+	return file.endswith('.js') and '.min.' not in file
+
+def norm_path(file):
+	return normcase(normpath(realpath(file))).replace('\\', '/')
+
+def norm_path_string(file):
+	return file.strip().lower().replace('\\', '/').replace('//', '/')
+
+def should_exclude(file):
+	return len([1 for exclusion in Pref.excluded_files_or_folders if exclusion in file])
+
+class Pref():
+
+	def load(self):
+		if debug:
+			print('-----------------')
+		Pref.excluded_files_or_folders = [norm_path_string(file) for file in s.get('excluded_files_or_folders', [])]
+		if debug:
+			print('excluded_files_or_folders')
+			print(Pref.excluded_files_or_folders)
+
+		Pref.forget_deleted_files = s.get('forget_deleted_files', False)
+
+		Pref.expressions = [re.compile(v, re.U).search for v in [
+			'(?P<name>\w+)\s*[: | =]\s*function\s*\((?P<sign>[^\)]*)\)',
+			'function\s*(?P<name>\w+)\s*\((?P<sign>[^\)]*)\)'
+		]]
+		Pref.folders = []
+
+		MySign.clear()
+		MySignCollectorThread().start()
+
+
+def folder_change_watcher():
+	while True:
+		time.sleep(5)
+		folders = [norm_path(folder) for window in sublime.windows() for folder in window.folders() if folder and not should_exclude(norm_path(folder))]
+		folders = list(set(folders))
+		folders.sort()
+
+		Pref.folders = list(set(Pref.folders))
+		Pref.folders.sort()
+		if Pref.folders != folders:
+			MySignCollectorThread().start()
+
+
+def plugin_loaded():
+	global Pref, s
+	s = sublime.load_settings('MySignaturePlugin.sublime-settings')
+	Pref = Pref()
+	Pref.load()
+	s.clear_on_change('reload')
+	s.add_on_change('reload', lambda:Pref.load())
+
+	if not 'running_folder_change_watcher' in globals():
+		running_folder_change_watcher = True
+		thread.start_new_thread(folder_change_watcher, ())
+
+if int(sublime.version()) < 3000:
+	plugin_loaded()
