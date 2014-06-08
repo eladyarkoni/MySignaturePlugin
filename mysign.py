@@ -47,7 +47,7 @@ class MySign:
 MySign = MySign()
 
 # the thread will parse or reparse a file if the file argument is present
-# if the "file" argument is not present, then while rescan the folders
+# if the "file" argument is not present, then will rescan the folders
 class MySignCollectorThread(threading.Thread):
 
 	def __init__(self, file = None):
@@ -61,12 +61,12 @@ class MySignCollectorThread(threading.Thread):
 			except:
 				pass
 		else:
-			# the list of opened files
+			# the list of opened files in all the windows
 			files = [norm_path(v.file_name()) for window in sublime.windows() for v in window.views() if v.file_name() and is_javascript_file(v.file_name()) and not should_exclude(norm_path(v.file_name()))]
 			# the list of opened folders in all the windows
 			folders = [norm_path(folder) for window in sublime.windows() for folder in window.folders() if folder and not should_exclude(norm_path(folder))]
 			Pref.folders = list(folders) # this is the "cache id" to know when to rescan the whole thing again
-			# add as folders, the dirname of the current opened files
+			# add also as folders, the dirname of the current opened files
 			folders += [norm_path(dirname(file)) for file in files]
 
 			folders = list(set(folders))
