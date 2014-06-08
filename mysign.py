@@ -40,7 +40,7 @@ class MySign:
 						name = function['name'] + '(' + function['sign']+ ')'
 						if 'hint' not in function:
 							if function['sign'].strip() == '':
-								function['hint'] = function['sign']
+								function['hint'] = ''
 							else:
 								function['hint'] = ", ".join(["${%s:%s}" % (k+1, v.strip()) for k, v in enumerate(function['sign'].split(','))])
 
