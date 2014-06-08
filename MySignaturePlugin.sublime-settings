@@ -5,6 +5,7 @@
 		"exclude_this_folder"
 	],
 
-	"forget_deleted_files": false
+	"forget_deleted_files": false,
 
+	"always_on_auto_completions": ["/${1:aSome}/.test(${2:aSome})", "alert(${1:aSome})", "apply(${1:aSome})", "arguments", "bind(${1:aSome})", "call(${1:aSome})", "concat(${1:aSome})", "confirm(${1:aSome})", "Date()", "document", "encodeURIComponent(${1:aSome})", "decodeURIComponent(${1:aSome})", "every(function(${1:aSome}) {", "filter(function(${1:aSome}) {", "for (var id in ${1:aSome}) {", "forEach(function(${1:aSome}) {", "function", "getElementById('${1:aSome}')", "getElementsByTagName('${1:aSome}')", "getElementsByClassName('${1:aSome}')", "indexOf('${1:aSome}')", "Infinity", "instanceof", "join('${1:aSome}')", "length", "map(function(${1:aSome}) {", "pop()", "prompt('${1:aSome}', '')", "prototype", "reduce(function(${1:aSome}) {", "RegExp", "reverse()", "shift()", "slice(${1:aSome})", "some(function(${1:aSome}) {", "sort(${1:aSome})", "splice(${1:aSome})", "split('${1:aSome}')", "this", "self", "toLowerCase()", "toUpperCase()", "typeof(${1:aSome})", "undefined", "unshift()", "window", "location", "object", "continue", "Array", "String", "break", "replace", "substr"]
 }

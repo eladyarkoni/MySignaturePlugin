@@ -5,7 +5,7 @@
 # Description: Sublime text autocomplete improvements:
 #				- showing javascript methods with parameters
 #-----------------------------------------------------------------------------------
-import sublime, sublime_plugin, os, re, threading, codecs, time
+import sublime, sublime_plugin, os, re, threading, codecs, time, re
 from os.path import basename, dirname, normpath, normcase, realpath
 
 try:
@@ -31,7 +31,7 @@ class MySign:
 
 	def get_completions(self, prefix):
 		skip_deleted = Pref.forget_deleted_files
-		completions = []
+		completions = [(re.sub('\${[^}]+}', 'aSome', w), w) for w in Pref.always_on_auto_completions]
 		for file, data in self.files.items():
 			if not skip_deleted or (skip_deleted and os.path.lexists(file)):
 				location = basename(file)
@@ -168,6 +168,8 @@ class Pref():
 			'function\s*(?P<name>\w+)\s*\((?P<sign>[^\)]*)\)'
 		]]
 		Pref.folders = []
+
+		Pref.always_on_auto_completions = s.get('always_on_auto_completions', [])
 
 		MySign.clear()
 		MySignCollectorThread().start()
