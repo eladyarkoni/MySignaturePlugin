@@ -1,3 +1,4 @@
+# coding=utf8
 #-----------------------------------------------------------------------------------
 # MySignature Sublime Text Plugin
 # Author: Elad Yarkoni
