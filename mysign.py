@@ -138,6 +138,8 @@ class MySignEventListener(sublime_plugin.EventListener):
 
 global Pref, s
 
+Pref = {}
+s = {}
 def is_javascript_view(view, locations = None):
 	return (view.file_name() and is_javascript_file(view.file_name())) or ('JavaScript' in view.settings().get('syntax')) or ( locations and len(locations) and '.js' in view.scope_name(locations[0]))
 
@@ -176,7 +178,6 @@ class Pref():
 		MySign.clear()
 		MySignCollectorThread().start()
 
-
 def folder_change_watcher():
 	while True:
 		time.sleep(5)
@@ -188,7 +189,6 @@ def folder_change_watcher():
 		Pref.folders.sort()
 		if Pref.folders != folders:
 			MySignCollectorThread().start()
-
 
 def plugin_loaded():
 	global Pref, s
