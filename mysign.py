@@ -133,7 +133,8 @@ class MySignEventListener(sublime_plugin.EventListener):
 
 	def on_query_completions(self, view, prefix, locations):
 		if is_javascript_view(view, locations):
-			return MySign.get_completions(prefix)
+			return (MySign.get_completions(prefix), 0)
+		return ([], 0)
 
 global Pref, s
 
