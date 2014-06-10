@@ -32,7 +32,8 @@ class MySign:
 
 	def get_completions(self, prefix):
 		skip_deleted = Pref.forget_deleted_files
-		completions = [(re.sub('\${[^}]+}', 'aSome', w), w) for w in Pref.always_on_auto_completions]
+		completions = list(Pref.always_on_auto_completions)
+
 		for file, data in self.files.items():
 			if not skip_deleted or (skip_deleted and os.path.lexists(file)):
 				location = basename(file)
@@ -168,12 +169,12 @@ class Pref():
 		Pref.forget_deleted_files = s.get('forget_deleted_files', False)
 
 		Pref.expressions = [re.compile(v, re.U).search for v in [
-			'(?P<name>\w+)\s*[: | =]\s*function\s*\((?P<sign>[^\)]*)\)',
+			'(?P<name>\w+)\s*[:|=]\s*function\s*\((?P<sign>[^\)]*)\)',
 			'function\s*(?P<name>\w+)\s*\((?P<sign>[^\)]*)\)'
 		]]
 		Pref.folders = []
 
-		Pref.always_on_auto_completions = s.get('always_on_auto_completions', [])
+		Pref.always_on_auto_completions = [(re.sub('\${[^}]+}', 'aSome', w), w) for w in s.get('always_on_auto_completions', [])]
 
 		MySign.clear()
 		MySignCollectorThread().start()
