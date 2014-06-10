@@ -106,9 +106,9 @@ class MySignCollectorThread(threading.Thread):
 				pass
 		else:
 			# the list of opened files in all the windows
-			files = [norm_path(v.file_name()) for window in sublime.windows() for v in window.views() if v.file_name() and is_javascript_file(v.file_name()) and not should_exclude(norm_path(v.file_name()))]
+			files = list(Pref.updated_files)
 			# the list of opened folders in all the windows
-			folders = [norm_path(folder) for window in sublime.windows() for folder in window.folders() if folder and not should_exclude(norm_path(folder))]
+			folders = list(Pref.updated_folders)
 			Pref.folders = list(folders) # this is the "cache id" to know when to rescan the whole thing again
 			# add also as folders, the dirname of the current opened files
 			folders += [norm_path(dirname(file)) for file in files]
@@ -157,14 +157,17 @@ class MySignCollectorThread(threading.Thread):
 
 class MySignEventListener(sublime_plugin.EventListener):
 
-	def on_post_save_async(self, view):
+	def on_post_save(self, view):
 		if is_javascript_view(view):
 			MySignCollectorThread(view.file_name()).start()
 
-	def on_load_async(self, view):
+	def on_load(self, view):
 		if is_javascript_view(view) and is_javascript_file(view.file_name()):
 			if norm_path(view.file_name()) not in MySign.files: # only if it is not indexed
 				MySignCollectorThread(view.file_name()).start()
+
+	def on_deactivated(self, view):
+		update_folders()
 
 	def on_query_completions(self, view, prefix, locations):
 		if is_javascript_view(view, locations):
@@ -211,14 +214,15 @@ class Pref():
 
 		Pref.always_on_auto_completions = [(re.sub('\${[^}]+}', 'aSome', w), w) for w in s.get('always_on_auto_completions', [])]
 
+		update_folders()
+
 		MySign.clear()
 		MySignCollectorThread().start()
 
 def folder_change_watcher():
 	while True:
 		time.sleep(5)
-		folders = [norm_path(folder) for window in sublime.windows() for folder in window.folders() if folder and not should_exclude(norm_path(folder))]
-		folders = list(set(folders))
+		folders = list(set(Pref.updated_folders))
 		folders.sort()
 
 		Pref.folders = list(set(Pref.folders))
@@ -237,6 +241,11 @@ def plugin_loaded():
 	if not 'running_folder_change_watcher' in globals():
 		running_folder_change_watcher = True
 		thread.start_new_thread(folder_change_watcher, ())
+
+def update_folders():
+	Pref.updated_folders = [norm_path(folder) for w in sublime.windows() for folder in w.folders() if folder and not should_exclude(norm_path(folder))]
+	Pref.updated_files = [norm_path(v.file_name()) for w in sublime.windows() for v in w.views() if v.file_name() and is_javascript_file(v.file_name()) and not should_exclude(norm_path(v.file_name()))]
+
 
 if int(sublime.version()) < 3000:
 	plugin_loaded()
