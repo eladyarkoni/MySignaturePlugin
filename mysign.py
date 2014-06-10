@@ -2,7 +2,8 @@
 #-----------------------------------------------------------------------------------
 # MySignature Sublime Text Plugin
 # Author: Elad Yarkoni
-# Version: 1.0
+# Contributor: Tito Bouzout <tito.bouzout@gmail.com>
+# Version: 2.0
 # Description: Sublime text autocomplete improvements:
 #				- showing javascript methods with parameters
 #-----------------------------------------------------------------------------------
