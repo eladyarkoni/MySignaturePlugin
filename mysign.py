@@ -25,6 +25,7 @@ class MySign:
 	NAME = 'name'
 	SIGN = 'sign'
 	COMPLETION = 'completion'
+
 	EMPTY = ''
 
 	def clear(self):
@@ -35,23 +36,34 @@ class MySign:
 		if debug:
 			print(self.files[file])
 
-	def get_completions(self, prefix):
+	def get_completions(self, view, prefix):
 		skip_deleted = Pref.forget_deleted_files
+
+		# start with default completions
 		completions = list(Pref.always_on_auto_completions)
 
+		# append these from indexed files
+		already_in = []
 		for file, data in self.files.items():
 			if not skip_deleted or (skip_deleted and os.path.lexists(file)):
 				location = basename(file)
 				for function in data:
 					if prefix in function[self.NAME]:
-						completion = self.create_completion(function, location)
+						already_in.append(function[self.NAME])
+						completion = self.create_function_completion(function, location)
 						completions.append(completion)
+
+		# append "var" names from current view
+		location = basename(view.file_name()) if view.file_name() else ''; vars = [];
+		[view.substr(selection) for selection in view.find_all('([var\s+]|\.)(\w+)\s*=', 0, '$2', vars)]
+		[completions.append(self.create_var_completion(var, location)) for var in list(set(vars)) if len(var) > 1 and var not in already_in]
+
 		if debug:
 			print("Completions")
 			print(completions)
 		return completions
 
-	def create_completion(self, function, location):
+	def create_function_completion(self, function, location):
 		if self.COMPLETION not in function:
 			name = function[self.NAME] + '(' + function[self.SIGN]+ ')'
 			if function[self.SIGN].strip() == self.EMPTY:
@@ -61,6 +73,9 @@ class MySign:
 			function[self.COMPLETION] = (name + '\t' + location, function[self.NAME] + '(' + hint+')')
 			del function[self.SIGN] # no longer needed
 		return function[self.COMPLETION]
+
+	def create_var_completion(self, var, location):
+		return (var + '\t' + location, var)
 
 MySign = MySign()
 
@@ -148,7 +163,7 @@ class MySignEventListener(sublime_plugin.EventListener):
 
 	def on_query_completions(self, view, prefix, locations):
 		if is_javascript_view(view, locations):
-			return (MySign.get_completions(prefix), 0)
+			return (MySign.get_completions(view, prefix), 0)
 		return ([], 0)
 
 global Pref, s
