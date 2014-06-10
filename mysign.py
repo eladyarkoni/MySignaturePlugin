@@ -16,7 +16,7 @@ except:
 
 
 global debug
-debug = False
+debug = True
 
 class MySign:
 
@@ -104,7 +104,10 @@ class MySignCollectorThread(threading.Thread):
 				self.parse_functions(norm_path(self.file))
 			except:
 				pass
-		else:
+		elif not Pref.scan_running:
+			Pref.scan_running = True
+			Pref.scan_started = time.time()
+
 			# the list of opened files in all the windows
 			files = list(Pref.updated_files)
 			# the list of opened folders in all the windows
@@ -126,6 +129,9 @@ class MySignCollectorThread(threading.Thread):
 				print("\n".join(files))
 
 			for file in files:
+				if time.time() - Pref.scan_started > Pref.scan_timeout:
+					Pref.scan_aborted = True
+					break
 				if file not in MySign.files:
 					try:
 						self.parse_functions(file)
@@ -134,6 +140,12 @@ class MySignCollectorThread(threading.Thread):
 				else:
 					if debug:
 						print('Skipping parsing of already indexed file')
+
+			if debug:
+				print('Scan done in '+str(time.time()-Pref.scan_started)+' seconds - Scan was aborted: '+str(Pref.scan_aborted)+' - Relevant Files:'+str(len(files)))
+
+			Pref.scan_running = False
+			Pref.scan_aborted = False
 
 	def parse_functions(self, file):
 		if debug:
@@ -147,6 +159,9 @@ class MySignCollectorThread(threading.Thread):
 		MySign.save_functions(file, functions)
 
 	def get_files(self, dir, files):
+		if time.time() - Pref.scan_started > Pref.scan_timeout:
+			Pref.scan_aborted = True
+			return
 		for file in os.listdir(dir):
 			file = os.path.join(dir, file)
 			if os.path.isfile(file) and not should_exclude(file):
@@ -214,21 +229,27 @@ class Pref():
 
 		Pref.always_on_auto_completions = [(re.sub('\${[^}]+}', 'aSome', w), w) for w in s.get('always_on_auto_completions', [])]
 
+		Pref.scan_running = False # to avoid multiple scans at the same time
+		Pref.scan_aborted = False # for debuging purposes
+		Pref.scan_started = 0
+		Pref.scan_timeout = 30 # seconds
+
 		update_folders()
 
 		MySign.clear()
 		MySignCollectorThread().start()
 
-def folder_change_watcher():
+def MySign_folder_change_watcher():
 	while True:
 		time.sleep(5)
-		folders = list(set(Pref.updated_folders))
-		folders.sort()
+		if not Pref.scan_running:
+			folders = list(set(Pref.updated_folders))
+			folders.sort()
 
-		Pref.folders = list(set(Pref.folders))
-		Pref.folders.sort()
-		if Pref.folders != folders:
-			MySignCollectorThread().start()
+			Pref.folders = list(set(Pref.folders))
+			Pref.folders.sort()
+			if Pref.folders != folders:
+				MySignCollectorThread().start()
 
 def plugin_loaded():
 	global Pref, s
@@ -238,9 +259,9 @@ def plugin_loaded():
 	s.clear_on_change('reload')
 	s.add_on_change('reload', lambda:Pref.load())
 
-	if not 'running_folder_change_watcher' in globals():
-		running_folder_change_watcher = True
-		thread.start_new_thread(folder_change_watcher, ())
+	if not 'running_MySign_folder_change_watcher' in globals():
+		running_MySign_folder_change_watcher = True
+		thread.start_new_thread(MySign_folder_change_watcher, ())
 
 def update_folders():
 	Pref.updated_folders = [norm_path(folder) for w in sublime.windows() for folder in w.folders() if folder and not should_exclude(norm_path(folder))]
