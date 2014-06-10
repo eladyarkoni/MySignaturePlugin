@@ -53,9 +53,14 @@ class MySign:
 						completion = self.create_function_completion(function, location)
 						completions.append(completion)
 
-		# append "var" names from current view
-		location = basename(view.file_name()) if view.file_name() else ''; vars = [];
-		[view.substr(selection) for selection in view.find_all('([var\s+]|\.)(\w+)\s*=', 0, '$2', vars)]
+		# current file
+		location = basename(view.file_name()) if view.file_name() else '';
+
+		# append functions from current view that yet have not been saved
+		[completions.append(self.create_function_completion(self.parse_line(view.substr(view.line(selection))), location)) for selection in view.find_by_selector('entity.name.function') if view.substr(selection) not in already_in and (already_in.append(view.substr(selection)) or True)]
+
+		# append "var" names from current file
+		vars = []; [view.substr(selection) for selection in view.find_all('([var\s+]|\.)(\w+)\s*[=|:]', 0, '$2', vars)]
 		[completions.append(self.create_var_completion(var, location)) for var in list(set(vars)) if len(var) > 1 and var not in already_in]
 
 		if debug:
@@ -76,6 +81,12 @@ class MySign:
 
 	def create_var_completion(self, var, location):
 		return (var + '\t' + location, var)
+
+	def parse_line(self, line):
+		for regexp in Pref.expressions:
+			matches = regexp(line)
+			if matches:
+				return matches.groupdict()
 
 MySign = MySign()
 
@@ -130,16 +141,10 @@ class MySignCollectorThread(threading.Thread):
 		lines = [line for line in codecs.open(file, encoding='utf8', errors='replace') if len(line) < 300 and "function" in line]
 		functions = []
 		for line in lines:
-			matches = self.parse_line(line)
+			matches = MySign.parse_line(line)
 			if matches and matches not in functions:
 				functions.append(matches)
 		MySign.save_functions(file, functions)
-
-	def parse_line(self, line):
-		for regexp in Pref.expressions:
-			matches = regexp(line)
-			if matches:
-				return matches.groupdict()
 
 	def get_files(self, dir, files):
 		for file in os.listdir(dir):
