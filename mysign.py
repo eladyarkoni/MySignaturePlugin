@@ -47,13 +47,15 @@ class MySign:
 		return completions
 
 	def create_completion(self, function, location):
-		name = function['name'] + '(' + function['sign']+ ')'
-		if 'hint' not in function:
+		if 'completion' not in function:
+			name = function['name'] + '(' + function['sign']+ ')'
 			if function['sign'].strip() == '':
-				function['hint'] = ''
+				hint = ''
 			else:
-				function['hint'] = ", ".join(["${%s:%s}" % (k+1, v.strip()) for k, v in enumerate(function['sign'].split(','))])
-		return (name + '\t' + location, function['name'] + '(' + function['hint']+')')
+				hint = ", ".join(["${%s:%s}" % (k+1, v.strip()) for k, v in enumerate(function['sign'].split(','))])
+			function['completion'] = (name + '\t' + location, function['name'] + '(' + hint+')')
+			del function['sign'] # no longer needed
+		return function['completion']
 
 MySign = MySign()
 
