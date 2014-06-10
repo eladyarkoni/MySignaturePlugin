@@ -6,7 +6,7 @@
 # Description: Sublime text autocomplete improvements:
 #				- showing javascript methods with parameters
 #-----------------------------------------------------------------------------------
-import sublime, sublime_plugin, os, re, threading, codecs, time, re
+import sublime, sublime_plugin, os, re, threading, codecs, time
 from os.path import basename, dirname, normpath, normcase, realpath
 
 try:
@@ -105,12 +105,16 @@ class MySignCollectorThread(threading.Thread):
 		lines = [line for line in codecs.open(file, encoding='utf8', errors='replace') if len(line) < 300 and "function" in line]
 		functions = []
 		for line in lines:
-			for regexp in Pref.expressions:
-				matches = regexp(line)
-				if matches and matches.groupdict() not in functions:
-					functions.append(matches.groupdict())
-					break
+			matches = self.parse_line(line)
+			if matches and matches not in functions:
+				functions.append(matches)
 		MySign.save_functions(file, functions)
+
+	def parse_line(self, line):
+		for regexp in Pref.expressions:
+			matches = regexp(line)
+			if matches:
+				return matches.groupdict()
 
 	def get_files(self, dir, files):
 		for file in os.listdir(dir):
@@ -141,6 +145,7 @@ global Pref, s
 
 Pref = {}
 s = {}
+
 def is_javascript_view(view, locations = None):
 	return (view.file_name() and is_javascript_file(view.file_name())) or ('JavaScript' in view.settings().get('syntax')) or ( locations and len(locations) and '.js' in view.scope_name(locations[0]))
 
