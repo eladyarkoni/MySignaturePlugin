@@ -22,6 +22,11 @@ class MySign:
 
 	files = dict()
 
+	NAME = 'name'
+	SIGN = 'sign'
+	COMPLETION = 'completion'
+	EMPTY = ''
+
 	def clear(self):
 		self.files = dict()
 
@@ -38,7 +43,7 @@ class MySign:
 			if not skip_deleted or (skip_deleted and os.path.lexists(file)):
 				location = basename(file)
 				for function in data:
-					if prefix in function['name']:
+					if prefix in function[self.NAME]:
 						completion = self.create_completion(function, location)
 						completions.append(completion)
 		if debug:
@@ -47,15 +52,15 @@ class MySign:
 		return completions
 
 	def create_completion(self, function, location):
-		if 'completion' not in function:
-			name = function['name'] + '(' + function['sign']+ ')'
-			if function['sign'].strip() == '':
-				hint = ''
+		if self.COMPLETION not in function:
+			name = function[self.NAME] + '(' + function[self.SIGN]+ ')'
+			if function[self.SIGN].strip() == self.EMPTY:
+				hint = self.EMPTY
 			else:
-				hint = ", ".join(["${%s:%s}" % (k+1, v.strip()) for k, v in enumerate(function['sign'].split(','))])
-			function['completion'] = (name + '\t' + location, function['name'] + '(' + hint+')')
-			del function['sign'] # no longer needed
-		return function['completion']
+				hint = ", ".join(["${%s:%s}" % (k+1, v.strip()) for k, v in enumerate(function[self.SIGN].split(','))])
+			function[self.COMPLETION] = (name + '\t' + location, function[self.NAME] + '(' + hint+')')
+			del function[self.SIGN] # no longer needed
+		return function[self.COMPLETION]
 
 MySign = MySign()
 
