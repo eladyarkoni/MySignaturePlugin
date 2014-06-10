@@ -16,7 +16,7 @@ except:
 
 
 global debug
-debug = True
+debug = False
 
 class MySign:
 
@@ -115,34 +115,66 @@ class MySignCollectorThread(threading.Thread):
 			Pref.folders = list(folders) # this is the "cache id" to know when to rescan the whole thing again
 			# add also as folders, the dirname of the current opened files
 			folders += [norm_path(dirname(file)) for file in files]
-
+			# deduplicate
 			folders = list(set(folders))
+			_folders = []
+			for folder in folders:
+				_folders = deduplicate_crawl_folders(_folders, folder)
+			folders = _folders
+
 			if debug:
 				print('Folders to scan:')
 				print("\n".join(folders))
-			for folder in folders:
-				self.get_files(folder, files)
 
-			files = list(set(files))
-			if debug:
-				print('Files to parse:')
-				print("\n".join(files))
+			# pasing
+			files_seen = 0
+			files_js = 0
+			files_cache_miss = 0
+			files_cache_hit = 0
+			files_failed_parsing = 0
 
+			# parse files with priority
 			for file in files:
-				if time.time() - Pref.scan_started > Pref.scan_timeout:
-					Pref.scan_aborted = True
+				if should_abort():
 					break
+				files_seen += 1
+				files_js += 1
 				if file not in MySign.files:
 					try:
 						self.parse_functions(file)
+						files_cache_miss += 1
 					except:
-						pass # the file may be unreachable/unreadable
+						files_failed_parsing += 1# the file may be unreachable/unreadable
 				else:
-					if debug:
-						print('Skipping parsing of already indexed file')
+					files_cache_hit += 1
+
+			# now parse folders
+			for folder in folders:
+				if should_abort():
+					break
+				for dir, dnames, files in os.walk(folder):
+					if should_abort():
+						break
+					for f in files:
+						if should_abort():
+							break
+						files_seen += 1
+						file = os.path.join(dir, f)
+						if not should_exclude(file) and is_javascript_file(file):
+							files_js += 1
+							file = norm_path(file)
+							if file not in MySign.files:
+								try:
+									self.parse_functions(file)
+									files_cache_miss += 1
+								except:
+									files_failed_parsing += 1# the file may be unreachable/unreadable
+							else:
+								files_cache_hit += 1
 
 			if debug:
-				print('Scan done in '+str(time.time()-Pref.scan_started)+' seconds - Scan was aborted: '+str(Pref.scan_aborted)+' - Relevant Files:'+str(len(files)))
+				print('Scan done in '+str(time.time()-Pref.scan_started)+' seconds - Scan was aborted: '+str(Pref.scan_aborted))
+				print('Files Seen:'+str(files_seen)+', Files JS:'+str(files_js)+', Cache Miss:'+str(files_cache_miss)+', Cache Hit:'+str(files_cache_hit)+', Failed Parsing:'+str(files_failed_parsing))
 
 			Pref.scan_running = False
 			Pref.scan_aborted = False
@@ -158,18 +190,6 @@ class MySignCollectorThread(threading.Thread):
 				functions.append(matches)
 		MySign.save_functions(file, functions)
 
-	def get_files(self, dir, files):
-		if time.time() - Pref.scan_started > Pref.scan_timeout:
-			Pref.scan_aborted = True
-			return
-		for file in os.listdir(dir):
-			file = os.path.join(dir, file)
-			if os.path.isfile(file) and not should_exclude(file):
-				if is_javascript_file(file):
-					files.append(norm_path(file))
-			elif os.path.isdir(file) and not should_exclude(file):
-				self.get_files(file, files)
-
 class MySignEventListener(sublime_plugin.EventListener):
 
 	def on_post_save(self, view):
@@ -181,7 +201,7 @@ class MySignEventListener(sublime_plugin.EventListener):
 			if norm_path(view.file_name()) not in MySign.files: # only if it is not indexed
 				MySignCollectorThread(view.file_name()).start()
 
-	def on_deactivated(self, view):
+	def on_activated(self, view):
 		update_folders()
 
 	def on_query_completions(self, view, prefix, locations):
@@ -209,6 +229,35 @@ def norm_path_string(file):
 def should_exclude(file):
 	return len([1 for exclusion in Pref.excluded_files_or_folders if exclusion in file])
 
+def update_folders():
+	folders = list(set([norm_path(folder) for w in sublime.windows() for folder in w.folders() if folder and not should_exclude(norm_path(folder))]))
+	_folders = []
+	for folder in folders:
+		_folders = deduplicate_crawl_folders(_folders, folder)
+	_folders.sort()
+	Pref.updated_folders = _folders
+	Pref.updated_files = [norm_path(v.file_name()) for w in sublime.windows() for v in w.views() if v.file_name() and is_javascript_file(v.file_name()) and not should_exclude(norm_path(v.file_name()))]
+
+def should_abort():
+	if time.time() - Pref.scan_started > Pref.scan_timeout:
+		Pref.scan_aborted = True
+	return Pref.scan_aborted
+
+# returns folders without child subfolders
+def deduplicate_crawl_folders(items, item):
+	new_list = []
+	add = True
+	for i in items:
+		if i.find(item+'\\') == 0 or i.find(item+'/') == 0:
+			continue
+		else:
+			new_list.append(i)
+		if (item+'\\').find(i+'\\') == 0 or (item+'/').find(i+'/') == 0:
+			add = False
+	if add:
+		new_list.append(item)
+	return new_list
+
 class Pref():
 
 	def load(self):
@@ -232,7 +281,7 @@ class Pref():
 		Pref.scan_running = False # to avoid multiple scans at the same time
 		Pref.scan_aborted = False # for debuging purposes
 		Pref.scan_started = 0
-		Pref.scan_timeout = 30 # seconds
+		Pref.scan_timeout = 60 # seconds
 
 		update_folders()
 
@@ -242,14 +291,8 @@ class Pref():
 def MySign_folder_change_watcher():
 	while True:
 		time.sleep(5)
-		if not Pref.scan_running:
-			folders = list(set(Pref.updated_folders))
-			folders.sort()
-
-			Pref.folders = list(set(Pref.folders))
-			Pref.folders.sort()
-			if Pref.folders != folders:
-				MySignCollectorThread().start()
+		if not Pref.scan_running and Pref.updated_folders != Pref.folders:
+			MySignCollectorThread().start()
 
 def plugin_loaded():
 	global Pref, s
@@ -262,11 +305,6 @@ def plugin_loaded():
 	if not 'running_MySign_folder_change_watcher' in globals():
 		running_MySign_folder_change_watcher = True
 		thread.start_new_thread(MySign_folder_change_watcher, ())
-
-def update_folders():
-	Pref.updated_folders = [norm_path(folder) for w in sublime.windows() for folder in w.folders() if folder and not should_exclude(norm_path(folder))]
-	Pref.updated_files = [norm_path(v.file_name()) for w in sublime.windows() for v in w.views() if v.file_name() and is_javascript_file(v.file_name()) and not should_exclude(norm_path(v.file_name()))]
-
 
 if int(sublime.version()) < 3000:
 	plugin_loaded()
