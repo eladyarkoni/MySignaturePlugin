@@ -102,7 +102,7 @@ class MySignCollectorThread(threading.Thread):
 	def parse_functions(self, file):
 		if debug:
 			print('\nParsing functions for file:\n'+file)
-		lines = [line for line in codecs.open(file, encoding='utf8') if len(line) < 300 and "function" in line]
+		lines = [line for line in codecs.open(file, encoding='utf8', errors='replace') if len(line) < 300 and "function" in line]
 		functions = []
 		for line in lines:
 			for regexp in Pref.expressions:
