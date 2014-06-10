@@ -218,7 +218,7 @@ def is_javascript_view(view, locations = None):
 	return (view.file_name() and is_javascript_file(view.file_name())) or ('JavaScript' in view.settings().get('syntax')) or ( locations and len(locations) and '.js' in view.scope_name(locations[0]))
 
 def is_javascript_file(file):
-	return file.endswith('.js') and '.min.' not in file
+	return file and file.endswith('.js') and '.min.' not in file
 
 def norm_path(file):
 	return normcase(normpath(realpath(file))).replace('\\', '/')
@@ -307,4 +307,4 @@ def plugin_loaded():
 		thread.start_new_thread(MySign_folder_change_watcher, ())
 
 if int(sublime.version()) < 3000:
-	plugin_loaded()
+	sublime.set_timeout(lambda:plugin_loaded(), 0)
