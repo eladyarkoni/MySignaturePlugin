@@ -39,18 +39,21 @@ class MySign:
 				location = basename(file)
 				for function in data:
 					if prefix in function['name']:
-						name = function['name'] + '(' + function['sign']+ ')'
-						if 'hint' not in function:
-							if function['sign'].strip() == '':
-								function['hint'] = ''
-							else:
-								function['hint'] = ", ".join(["${%s:%s}" % (k+1, v.strip()) for k, v in enumerate(function['sign'].split(','))])
-
-						completions.append((name + '\t' + location, function['name'] + '(' + function['hint']+')'))
+						completion = self.create_completion(function, location)
+						completions.append(completion)
 		if debug:
 			print("Completions")
 			print(completions)
 		return completions
+
+	def create_completion(self, function, location):
+		name = function['name'] + '(' + function['sign']+ ')'
+		if 'hint' not in function:
+			if function['sign'].strip() == '':
+				function['hint'] = ''
+			else:
+				function['hint'] = ", ".join(["${%s:%s}" % (k+1, v.strip()) for k, v in enumerate(function['sign'].split(','))])
+		return (name + '\t' + location, function['name'] + '(' + function['hint']+')')
 
 MySign = MySign()
 
